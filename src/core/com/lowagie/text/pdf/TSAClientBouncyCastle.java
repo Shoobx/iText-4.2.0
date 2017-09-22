@@ -54,6 +54,7 @@ import java.math.*;
 import java.net.*;
 import com.lowagie.text.error_messages.MessageLocalization;
 
+import org.bouncycastle.asn1.DERObjectIdentifier;
 import org.bouncycastle.asn1.cmp.*;
 import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.tsp.*;
@@ -78,6 +79,10 @@ public class TSAClientBouncyCastle implements TSAClient {
     protected String tsaPassword;
     /** Estimate of the received time stamp token */
     protected int tokSzEstimate;
+    /** Name of algorithm to make digests */
+    protected String digestAlgName;
+    /** ID of digest algorithm to use */
+    protected DERObjectIdentifier digestAlgId;
     
     /**
      * Creates an instance of a TSAClient that will use BouncyCastle.
@@ -108,10 +113,44 @@ public class TSAClientBouncyCastle implements TSAClient {
      * @param tokSzEstimate int - estimated size of received time stamp token (DER encoded)
      */
     public TSAClientBouncyCastle(String url, String username, String password, int tokSzEstimate) {
+        this(url, username, password, tokSzEstimate, "SHA-1", X509ObjectIdentifiers.id_SHA1);
+    }
+    
+    /**
+     * Constructor.
+     * Note the token size estimate is updated by each call, as the token
+     * size is not likely to change (as long as we call the same TSA using
+     * the same imprint length).
+     * @param url String - Time Stamp Authority URL (i.e. "http://tsatest1.digistamp.com/TSA")
+     * @param username String - user(account) name
+     * @param password String - password
+     * @param tokSzEstimate int - estimated size of received time stamp token (DER encoded)
+     * @param digestAlgName String - name of algorithm to make digests
+     * @param digestAlgId DERObjectIdentifier - digest algorithm identifier
+     */
+    public TSAClientBouncyCastle(String url, String username, String password, int tokSzEstimate, String digestAlgName, DERObjectIdentifier digestAlgId) {
         this.tsaURL       = url;
         this.tsaUsername  = username;
         this.tsaPassword  = password;
         this.tokSzEstimate = tokSzEstimate;
+        this.digestAlgName = digestAlgName;
+        this.digestAlgId = digestAlgId;
+    }
+    
+    /**
+     * Get the algorithm name TSA expects to be used for digests.
+     * @return digest algorithm name
+     */
+    public String getDigestAlgorithmName() {
+        return this.digestAlgName;
+    }
+    
+    /**
+     * Get the digest algorithm ID.
+     * @return digest algorithm identifier
+     */
+    public DERObjectIdentifier getDigestAlgorithmId() {
+        return this.digestAlgId;
     }
     
     /**
@@ -147,7 +186,7 @@ public class TSAClientBouncyCastle implements TSAClient {
             tsqGenerator.setCertReq(true);
             // tsqGenerator.setReqPolicy("1.3.6.1.4.1.601.10.3.1");
             BigInteger nonce = BigInteger.valueOf(System.currentTimeMillis());
-            TimeStampRequest request = tsqGenerator.generate(X509ObjectIdentifiers.id_SHA1.getId() , imprint, nonce);
+            TimeStampRequest request = tsqGenerator.generate(this.digestAlgId.getId() , imprint, nonce);
             byte[] requestBytes = request.getEncoded();
             
             // Call the communications layer

@@ -642,10 +642,21 @@ public class PdfPKCS7 {
      * @since	2.1.6
      */
     public boolean verifyTimestampImprint() throws NoSuchAlgorithmException {
+        return verifyTimestampImprint("SHA-1");
+    }
+    
+    /**
+     * Checks if the timestamp refers to this document.
+     * @throws java.security.NoSuchAlgorithmException on error
+     * @param digestAlgorithm String - name of the digest algorithm
+     * @return true if it checks false otherwise
+     * @since	2.1.6
+     */
+    public boolean verifyTimestampImprint(String digestAlgorithm) throws NoSuchAlgorithmException {
         if (timeStampToken == null)
             return false;
         MessageImprint imprint = timeStampToken.getTimeStampInfo().toTSTInfo().getMessageImprint();
-        byte[] md = MessageDigest.getInstance("SHA-1").digest(digest);
+        byte[] md = MessageDigest.getInstance(digestAlgorithm).digest(digest);
         byte[] imphashed = imprint.getHashedMessage();
         boolean res = Arrays.equals(md, imphashed);
         return res;
@@ -1232,7 +1243,7 @@ public class PdfPKCS7 {
             // Added by Martin Brunecky, 07/12/2007 folowing Aiken Sam, 2006-11-15
             // Sam found Adobe expects time-stamped SHA1-1 of the encrypted digest
             if (tsaClient != null) {
-                byte[] tsImprint = MessageDigest.getInstance("SHA-1").digest(digest);
+                byte[] tsImprint = MessageDigest.getInstance(tsaClient.getDigestAlgorithmName()).digest(digest);
                 byte[] tsToken = tsaClient.getTimeStampToken(this, tsImprint);
                 if (tsToken != null) {
                     ASN1EncodableVector unauthAttributes = buildUnauthenticatedAttributes(tsToken);

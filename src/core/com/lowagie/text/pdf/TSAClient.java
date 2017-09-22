@@ -49,6 +49,8 @@
 
 package com.lowagie.text.pdf;
 
+import org.bouncycastle.asn1.DERObjectIdentifier;
+
 /**
  * Time Stamp Authority client (caller) interface.
  * <p>
@@ -58,6 +60,18 @@ package com.lowagie.text.pdf;
  * @since	2.1.6
  */
 public interface TSAClient {
+    /**
+     * Get the algorithm name TSA expects to be used for digests.
+     * @return digest algorithm name
+     */
+    public String getDigestAlgorithmName();
+    
+    /**
+     * Get the digest algorithm ID.
+     * @return digest algorithm identifier
+     */
+    public DERObjectIdentifier getDigestAlgorithmId();
+    
     /**
      * Get the time stamp token size estimate.
      * Implementation must return value large enough to accomodate the entire token
