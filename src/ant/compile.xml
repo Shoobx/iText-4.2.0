@@ -45,6 +45,11 @@
         <javac source="${itext.jdk.core}" target="${itext.jdk.core}" srcdir="${itext.src}/core" destdir="${itext.bin}">
     	<classpath refid="itext.classpath"/>
     	</javac>
+        <copy todir="${itext.bin}/com/lowagie/text/error_messages" overwrite="yes">
+            <fileset dir="${itext.src}/core/com/lowagie/text/error_messages">
+                <include name="*.lng"/>
+            </fileset>
+        </copy>
     </target>
 
     <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
