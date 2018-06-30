@@ -1,5 +1,7 @@
 # iText is a Java PDF library originally dual licensed under MPL/LGPL #
 
+[![Maintainability](https://api.codeclimate.com/v1/badges/1651b8a17708d842157b/maintainability)](https://codeclimate.com/github/Shoobx/iText-4.2.0/maintainability)
+
 ## Background ##
 
 Beginning with version 5.0 the developers have moved to the AGPL to improve their ability to sell commercial licenses. I fully respect the developers' wishes and rights. To assist those desiring to stick with the old license I'm making the final MPL/LGPL version more easily available.
