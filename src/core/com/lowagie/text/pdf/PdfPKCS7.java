@@ -1137,7 +1137,7 @@ public class PdfPKCS7 {
      * @return the bytes for the PKCS7SignedData object
      */
     public byte[] getEncodedPKCS7() {
-        return getEncodedPKCS7(null, null, null, null);
+        return getEncodedPKCS7(null, null, null, (byte[][])null);
     }
     
     /**
@@ -1148,7 +1148,7 @@ public class PdfPKCS7 {
      * @return the bytes for the PKCS7SignedData object
      */
     public byte[] getEncodedPKCS7(byte secondDigest[], Calendar signingTime) {
-        return getEncodedPKCS7(secondDigest, signingTime, null, null);
+        return getEncodedPKCS7(secondDigest, signingTime, null, (byte[][])null);
     }
 
     /**
@@ -1162,6 +1162,14 @@ public class PdfPKCS7 {
      * @since	2.1.6
      */
     public byte[] getEncodedPKCS7(byte secondDigest[], Calendar signingTime, TSAClient tsaClient, byte[] ocsp) {
+        byte[][] ocsps = null;
+        if (ocsp != null) {
+            ocsps = new byte[][]{ocsp};
+        }
+        return getEncodedPKCS7(secondDigest, signingTime, tsaClient, ocsps);
+    }
+    
+    public byte[] getEncodedPKCS7(byte secondDigest[], Calendar signingTime, TSAClient tsaClient, byte[][] ocsps) {
         try {
             if (externalDigest != null) {
                 digest = externalDigest;
@@ -1228,7 +1236,7 @@ public class PdfPKCS7 {
             
             // add the authenticated attribute if present
             if (secondDigest != null && signingTime != null) {
-                signerinfo.add(new DERTaggedObject(false, 0, getAuthenticatedAttributeSet(secondDigest, signingTime, ocsp)));
+                signerinfo.add(new DERTaggedObject(false, 0, getAuthenticatedAttributeSet(secondDigest, signingTime, ocsps)));
             }
             // Add the digestEncryptionAlgorithm
             v = new ASN1EncodableVector();
@@ -1311,7 +1319,6 @@ public class PdfPKCS7 {
         return unauthAttributes;
      }
 
-    
     /**
      * When using authenticatedAttributes the authentication process is different.
      * The document digest is generated and put inside the attribute. The signing is done over the DER encoded
@@ -1340,15 +1347,23 @@ public class PdfPKCS7 {
      * @return the byte array representation of the authenticatedAttributes ready to be signed
      */    
     public byte[] getAuthenticatedAttributeBytes(byte secondDigest[], Calendar signingTime, byte[] ocsp) {
+        byte[][] ocsps = null;
+        if (ocsp != null) {
+            ocsps = new byte[][]{ocsp};
+        }
+        return getAuthenticatedAttributeBytes(secondDigest, signingTime, ocsps);
+    }
+    
+    public byte[] getAuthenticatedAttributeBytes(byte secondDigest[], Calendar signingTime, byte[][] ocsps) {
         try {
-            return getAuthenticatedAttributeSet(secondDigest, signingTime, ocsp).getEncoded(ASN1Encodable.DER);
+            return getAuthenticatedAttributeSet(secondDigest, signingTime, ocsps).getEncoded(ASN1Encodable.DER);
         }
         catch (Exception e) {
             throw new ExceptionConverter(e);
         }
     }
     
-    private DERSet getAuthenticatedAttributeSet(byte secondDigest[], Calendar signingTime, byte[] ocsp) {
+    private DERSet getAuthenticatedAttributeSet(byte secondDigest[], Calendar signingTime, byte[][] ocsps) {
         try {
             ASN1EncodableVector attribute = new ASN1EncodableVector();
             ASN1EncodableVector v = new ASN1EncodableVector();
@@ -1363,31 +1378,43 @@ public class PdfPKCS7 {
             v.add(new DERObjectIdentifier(ID_MESSAGE_DIGEST));
             v.add(new DERSet(new DEROctetString(secondDigest)));
             attribute.add(new DERSequence(v));
-            if (ocsp != null) {
+            
+            if (ocsps != null || !crls.isEmpty()) {
                 v = new ASN1EncodableVector();
                 v.add(new DERObjectIdentifier(ID_ADBE_REVOCATION));
-                DEROctetString doctet = new DEROctetString(ocsp);
-                ASN1EncodableVector vo1 = new ASN1EncodableVector();
-                ASN1EncodableVector v2 = new ASN1EncodableVector();
-                v2.add(OCSPObjectIdentifiers.id_pkix_ocsp_basic);
-                v2.add(doctet);
-                DEREnumerated den = new DEREnumerated(0);
-                ASN1EncodableVector v3 = new ASN1EncodableVector();
-                v3.add(den);
-                v3.add(new DERTaggedObject(true, 0, new DERSequence(v2)));
-                vo1.add(new DERSequence(v3));
-                v.add(new DERSet(new DERSequence(new DERTaggedObject(true, 1, new DERSequence(vo1)))));
-                attribute.add(new DERSequence(v));
-            }                
-            else if (!crls.isEmpty()) {
-                v = new ASN1EncodableVector();
-                v.add(new DERObjectIdentifier(ID_ADBE_REVOCATION));
-                ASN1EncodableVector v2 = new ASN1EncodableVector();
-                for (Iterator i = crls.iterator();i.hasNext();) {
-                    ASN1InputStream t = new ASN1InputStream(new ByteArrayInputStream(((X509CRL)i.next()).getEncoded()));
-                    v2.add(t.readObject());
+                ASN1EncodableVector revocations = new ASN1EncodableVector();
+
+                if (!crls.isEmpty()) {
+                    ASN1EncodableVector v2 = new ASN1EncodableVector();
+                    for (Iterator i = crls.iterator();i.hasNext();) {
+                        ASN1InputStream t = new ASN1InputStream(new ByteArrayInputStream(((X509CRL)i.next()).getEncoded()));
+                        v2.add(t.readObject());
+                    }
+                    revocations.add(new DERTaggedObject(true, 0, new DERSequence(v2)));
                 }
-                v.add(new DERSet(new DERSequence(new DERTaggedObject(true, 0, new DERSequence(v2)))));
+                if (ocsps != null) {
+                    // sequence of OCSP responses
+                    ASN1EncodableVector vo1 = new ASN1EncodableVector();
+                
+                    for(int index = 0; index < ocsps.length; index++) {
+                        byte[] ocsp = ocsps[index];
+                        // OCSP response data
+                        DEROctetString doctet = new DEROctetString(ocsp);
+                        ASN1EncodableVector v2 = new ASN1EncodableVector();
+                        v2.add(OCSPObjectIdentifiers.id_pkix_ocsp_basic);
+                        v2.add(doctet);
+                
+                        // single OCSP response record
+                        DEREnumerated den = new DEREnumerated(0);
+                        ASN1EncodableVector v3 = new ASN1EncodableVector();
+                        v3.add(den);
+                        v3.add(new DERTaggedObject(true, 0, new DERSequence(v2)));
+                
+                        vo1.add(new DERSequence(v3));
+                    }
+                    revocations.add(new DERTaggedObject(true, 1, new DERSequence(vo1)));
+                }                
+                v.add(new DERSet(new DERSequence(revocations)));
                 attribute.add(new DERSequence(v));
             }
             return new DERSet(attribute);
