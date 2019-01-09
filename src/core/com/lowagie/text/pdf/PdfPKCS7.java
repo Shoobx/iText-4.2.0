@@ -1378,8 +1378,10 @@ public class PdfPKCS7 {
             v.add(new DERObjectIdentifier(ID_MESSAGE_DIGEST));
             v.add(new DERSet(new DEROctetString(secondDigest)));
             attribute.add(new DERSequence(v));
+
+            boolean hasOCSPs = (ocsps != null) && (ocsps.length > 0);
             
-            if (ocsps != null || !crls.isEmpty()) {
+            if (hasOCSPs || !crls.isEmpty()) {
                 v = new ASN1EncodableVector();
                 v.add(new DERObjectIdentifier(ID_ADBE_REVOCATION));
                 ASN1EncodableVector revocations = new ASN1EncodableVector();
@@ -1392,7 +1394,7 @@ public class PdfPKCS7 {
                     }
                     revocations.add(new DERTaggedObject(true, 0, new DERSequence(v2)));
                 }
-                if (ocsps != null) {
+                if (hasOCSPs) {
                     // sequence of OCSP responses
                     ASN1EncodableVector vo1 = new ASN1EncodableVector();
                 
